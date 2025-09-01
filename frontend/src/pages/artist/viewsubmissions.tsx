@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, ArrowLeft, Music, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getSubmissions } from "@/lib/supabaseutils/api";
 
 interface Submission {
   id: string;
@@ -15,81 +16,112 @@ interface Submission {
   rating: number;
   feedback: string;
   status: "pending" | "accepted" | "rejected";
-  submittedAt: string;
-  duration: string;
+  created_at: string;
+  files: string[];
 }
 
 export default function ViewSubmissionsPage() {
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [playProgress, setPlayProgress] = useState<{ [key: string]: number }>(
-    {}
-  );
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef(null);
 
-  const submissions: Submission[] = [
-    {
-      id: "1",
-      title: "Midnight Dreams",
-      genre: "Electronic",
-      bpm: 128,
-      key: "Am",
-      description:
-        "A dreamy electronic track with ambient textures and a driving beat.",
-      rating: 8,
-      feedback:
-        "Great production quality and unique sound design. The arrangement flows well and the mix is clean. Consider adding more variation in the breakdown section.",
-      status: "accepted",
-      submittedAt: "2024-01-15",
-      duration: "3:42",
-    },
-    {
-      id: "2",
-      title: "Urban Pulse",
-      genre: "Hip Hop",
-      bpm: 95,
-      key: "Gm",
-      description:
-        "Hard-hitting hip hop beat with trap influences and heavy 808s.",
-      rating: 6,
-      feedback:
-        "Solid foundation but needs more dynamic elements. The 808s are well-tuned but consider adding more melodic content to keep listener engagement.",
-      status: "pending",
-      submittedAt: "2024-01-20",
-      duration: "2:58",
-    },
-    {
-      id: "3",
-      title: "Sunset Vibes",
-      genre: "Lo-Fi",
-      bpm: 85,
-      key: "C",
-      description: "Chill lo-fi track perfect for studying or relaxing.",
-      rating: 4,
-      feedback:
-        "While the vibe is nice, the track lacks originality and the mix feels muddy. Work on cleaning up the low-end and adding more unique elements.",
-      status: "rejected",
-      submittedAt: "2024-01-18",
-      duration: "4:15",
-    },
-  ];
+  //demodata
+  //   const [submissions, setSubmissions] = useState<Submission[]>([
+  //     {
+  //       id: "1",
+  //       title: "Midnight Dreams",
+  //       genre: "Electronic",
+  //       bpm: 128,
+  //       key: "Am",
+  //       description:
+  //         "A dreamy electronic track with ambient textures and a driving beat.",
+  //       rating: 8,
+  //       feedback:
+  //         "Great production quality and unique sound design. The arrangement flows well and the mix is clean. Consider adding more variation in the breakdown section.",
+  //       status: "accepted",
+  //       submittedAt: "2024-01-15",
+  //       duration: "3:42",
+  //     },
+  //     {
+  //       id: "2",
+  //       title: "Urban Pulse",
+  //       genre: "Hip Hop",
+  //       bpm: 95,
+  //       key: "Gm",
+  //       description:
+  //         "Hard-hitting hip hop beat with trap influences and heavy 808s.",
+  //       rating: 6,
+  //       feedback:
+  //         "Solid foundation but needs more dynamic elements. The 808s are well-tuned but consider adding more melodic content to keep listener engagement.",
+  //       status: "pending",
+  //       submittedAt: "2024-01-20",
+  //       duration: "2:58",
+  //     },
+  //     {
+  //       id: "3",
+  //       title: "Sunset Vibes",
+  //       genre: "Lo-Fi",
+  //       bpm: 85,
+  //       key: "C",
+  //       description: "Chill lo-fi track perfect for studying or relaxing.",
+  //       rating: 4,
+  //       feedback:
+  //         "While the vibe is nice, the track lacks originality and the mix feels muddy. Work on cleaning up the low-end and adding more unique elements.",
+  //       status: "rejected",
+  //       submittedAt: "2024-01-18",
+  //       duration: "4:15",
+  //     },
+  //   ]);
 
-  const handlePlayPause = (id: string) => {
-    if (playingId === id) {
-      setPlayingId(null);
-    } else {
-      setPlayingId(id);
-      // Simulate progress update
-      const interval = setInterval(() => {
-        setPlayProgress((prev) => {
-          const current = prev[id] || 0;
-          if (current >= 100) {
-            clearInterval(interval);
-            setPlayingId(null);
-            return { ...prev, [id]: 0 };
-          }
-          return { ...prev, [id]: current + 1 };
-        });
-      }, 100);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  const fetchSubmissions = async () => {
+    try {
+      const data = await getSubmissions();
+      setSubmissions(data);
+    } catch (err) {
+      console.error("Error fetching submissions:", err.message);
     }
+  };
+
+  const handlePlayPause = (file: string) => {
+    if (playingId === file) {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.play();
+      }
+      setIsPlaying(!isPlaying);
+    } else {
+      setPlayingId(file);
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.play();
+      setIsPlaying(true);
+      setProgress(0);
+    }
+  };
+
+  // Update progress as audio plays
+  const handleTimeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setProgress(audio.currentTime);
+  };
+
+  // When audio metadata loads, get duration
+  const handleLoadedMetadata = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    // setDuration(audio.duration);
   };
 
   const getStatusColor = (status: string) => {
@@ -134,6 +166,12 @@ export default function ViewSubmissionsPage() {
                 </h1>
                 <p className="text-slate-400">Artist</p>
               </div>
+              <audio
+                ref={audioRef}
+                src={playingId || undefined}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+              />
             </div>
           </div>
 
@@ -165,10 +203,10 @@ export default function ViewSubmissionsPage() {
                         <div className="flex items-center gap-4">
                           <Button
                             size="sm"
-                            onClick={() => handlePlayPause(submission.id)}
+                            onClick={() => handlePlayPause(submission.files[0])}
                             className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
                           >
-                            {playingId === submission.id ? (
+                            {playingId === submission.files[0] ? (
                               <Pause className="h-5 w-5" />
                             ) : (
                               <Play className="h-5 w-5 ml-0.5" />
@@ -192,7 +230,7 @@ export default function ViewSubmissionsPage() {
                                 key={i}
                                 className={`flex-1 rounded-sm transition-all duration-200 ${
                                   playingId === submission.id &&
-                                  i < (playProgress[submission.id] || 0) / 2
+                                  i < (progress || 0) / 2
                                     ? "bg-blue-400"
                                     : "bg-slate-600"
                                 }`}
@@ -208,7 +246,7 @@ export default function ViewSubmissionsPage() {
                             <div
                               className="bg-blue-400 h-1 rounded-full transition-all duration-100"
                               style={{
-                                width: `${playProgress[submission.id] || 0}%`,
+                                width: `${progress || 0}%`,
                               }}
                             />
                           </div>

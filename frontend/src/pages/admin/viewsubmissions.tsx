@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Play, Pause, Save, Settings, Star } from "lucide-react";
+import { useAdmin } from "@/lib/hooks/useAdmin";
 
 interface AdminSubmission {
   id: string;
@@ -157,13 +158,19 @@ export default function AdminViewSubmissions() {
     }
   };
 
+  const { isAdmin, loading } = useAdmin();
+
   const getRatingColor = (rating: number) => {
     if (rating >= 8) return "text-green-400";
     if (rating >= 6) return "text-yellow-400";
     return "text-red-400";
   };
 
-  return (
+  if (loading) return <p>Loading...</p>;
+
+  return !isAdmin ? (
+    <p>You do not have access to this page.</p>
+  ) : (
     <div className="min-h-screen bg-slate-900">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pointer-events-none" />
 

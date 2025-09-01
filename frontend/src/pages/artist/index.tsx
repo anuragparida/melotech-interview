@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,32 +17,47 @@ import {
   Play,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getUser, updateUser } from "@/lib/supabaseutils/api";
 
 export default function Artist() {
   const [isEditing, setIsEditing] = useState(false);
   const [artistData, setArtistData] = useState({
-    name: "Maya Rodriguez",
-    email: "maya.rodriguez@email.com",
-    phone: "+1 (555) 123-4567",
-    instagram: "@mayarodriguezmusic",
-    soundcloud: "mayarodriguezofficial",
-    spotify: "Maya Rodriguez",
-    biography:
-      "Maya Rodriguez is a versatile singer-songwriter and producer known for her soulful vocals and innovative blend of R&B, pop, and electronic elements. With over 5 years in the industry, she has collaborated with numerous artists and has been featured on several major streaming playlists. Her debut album 'Echoes of Tomorrow' reached #3 on the indie charts and garnered critical acclaim for its emotional depth and production quality.",
+    name: "",
+    email: "",
+    phone: "",
+    instagram: "",
+    soundcloud: "",
+    spotify: "",
+    biography: "",
   });
 
   const handleInputChange = (field: string, value: string) => {
     setArtistData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsEditing(false);
     console.log("Saving artist data:", artistData);
+    try {
+      const updated = await updateUser(artistData);
+      setArtistData(updated);
+    } catch (err) {
+      console.error(err.message);
+    }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
   };
+
+  useEffect(() => {
+    getUser()
+      .then((data) => {
+        console.log("Fetched artist data:", data);
+        setArtistData(data);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -193,6 +208,17 @@ export default function Artist() {
                       >
                         Email Address
                       </Label>
+                      <p className="text-slate-400 font-medium py-2 select-none">
+                        {artistData.email}
+                      </p>
+                    </div>
+                    {/* <div className="space-y-3">
+                      <Label
+                        htmlFor="email"
+                        className="text-sm font-semibold text-slate-200"
+                      >
+                        Email Address
+                      </Label>
                       {isEditing ? (
                         <Input
                           id="email"
@@ -208,7 +234,7 @@ export default function Artist() {
                           {artistData.email}
                         </p>
                       )}
-                    </div>
+                    </div> */}
 
                     {/* Phone */}
                     <div className="space-y-3">

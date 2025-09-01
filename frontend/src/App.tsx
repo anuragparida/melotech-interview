@@ -29,25 +29,25 @@ export default function App() {
     if (error) console.error("Login error:", error.message);
     else {
       console.log("Logged in:", data);
-      // const { user } = data;
-      // if (user) {
-      //   const { data: userData, error: userError } = await supabase
-      //     .from("users")
-      //     .select("admin")
-      //     .eq("authid", user.id)
-      //     .single();
+      const { user } = data;
+      if (user) {
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("admin")
+          .eq("authid", user.id)
+          .single();
 
-      //   if (userError) {
-      //     console.error("User query error:", userError.message);
-      //   } else if (userData?.admin) {
-      //     console.log("User is admin");
-      //     // You can handle admin logic here
-      //     window.location.href = "/admin";
-      //   } else {
-      //     console.log("User is not admin");
-      //     window.location.href = "/artist";
-      //   }
-      // }
+        if (userError) {
+          console.error("User query error:", userError.message);
+        } else if (userData?.admin) {
+          console.log("User is admin");
+          // You can handle admin logic here
+          window.location.href = "/admin";
+        } else {
+          console.log("User is not admin");
+          window.location.href = "/artist";
+        }
+      }
     }
   };
 

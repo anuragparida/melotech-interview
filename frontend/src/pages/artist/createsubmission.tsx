@@ -9,31 +9,35 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Upload, ArrowLeft, Music } from "lucide-react";
 import { Link } from "react-router-dom";
+import { createSubmission } from "@/lib/supabaseutils/api";
 
 export default function CreateSubmission() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState("");
   const [formData, setFormData] = useState({
-    title: "",
-    genre: "",
-    bpm: "",
-    key: "",
-    description: "",
+    title: (Math.random() + 1).toString(36).substring(7),
+    genre: (Math.random() + 1).toString(36).substring(7),
+    bpm: 321,
+    key: "F#",
+    description: (Math.random() + 1).toString(36).substring(7),
   });
-  const [files, setFiles] = useState({
-    mp3: null as File | null,
-    wav: null as File | null,
-    flac: null as File | null,
-    m4a: null as File | null,
-  });
+
+  const [files, setFiles] = useState(["", "", "", ""]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleFileChange = (format: string, file: File | null) => {
-    setFiles((prev) => ({ ...prev, [format]: file }));
+  const handleFileChange = (index, event) => {
+    const newFiles = [...files];
+    const file = event.target.files[0];
+    if (file) {
+      newFiles[index] = file; // add or replace file at this index
+    } else {
+      newFiles[index] = undefined; // remove if cleared
+    }
+    setFiles(newFiles.filter(Boolean)); // remove undefined/null
   };
 
   const simulateUpload = () => {
@@ -75,9 +79,18 @@ export default function CreateSubmission() {
     }, 500);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    simulateUpload();
+    // simulateUpload();
+    try {
+      const submission = await createSubmission(formData, files);
+      console.log("Submission created:", submission);
+      // Optionally reset form
+      setFormData({ title: "", genre: "", bpm: 0, key: "", description: "" });
+      setFiles(["", "", "", ""]);
+    } catch (err) {
+      console.error("Error submitting:", err);
+    }
   };
 
   return (
@@ -200,40 +213,37 @@ export default function CreateSubmission() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(["mp3", "wav", "flac", "m4a"] as const).map((format) => (
-                    <div key={format} className="space-y-2">
-                      <Label className="text-slate-300 uppercase font-medium">
-                        {format}
-                      </Label>
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept={`.${format}`}
-                          onChange={(e) =>
-                            handleFileChange(
-                              format,
-                              e.target.files?.[0] || null
-                            )
-                          }
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <div className="flex items-center gap-3 p-4 bg-slate-800/30 border-2 border-dashed border-slate-700 rounded-lg hover:border-purple-500/50 transition-colors">
-                          <Upload className="h-5 w-5 text-slate-400" />
-                          <div className="flex-1">
-                            {files[format] ? (
-                              <p className="text-white text-sm">
-                                {files[format]?.name}
-                              </p>
-                            ) : (
-                              <p className="text-slate-400 text-sm">
-                                Click to upload {format.toUpperCase()} file
-                              </p>
-                            )}
+                  {(["mp3", "wav", "flac", "m4a"] as const).map(
+                    (format, index) => (
+                      <div key={format} className="space-y-2">
+                        <Label className="text-slate-300 uppercase font-medium">
+                          {format}
+                        </Label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept={`.${format}`}
+                            onChange={(e) => handleFileChange(index, e)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          <div className="flex items-center gap-3 p-4 bg-slate-800/30 border-2 border-dashed border-slate-700 rounded-lg hover:border-purple-500/50 transition-colors">
+                            <Upload className="h-5 w-5 text-slate-400" />
+                            <div className="flex-1">
+                              {files[index] ? (
+                                <p className="text-white text-sm">
+                                  {files[index]?.name}
+                                </p>
+                              ) : (
+                                <p className="text-slate-400 text-sm">
+                                  Click to upload {format.toUpperCase()} file
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </CardContent>
             </Card>
