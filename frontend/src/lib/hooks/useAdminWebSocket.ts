@@ -41,10 +41,9 @@ export function useAdminWebSocket({
 
   const { isConnected, connectionStatus, sendMessage } = useWebSocket({
     url: `${
-      import.meta.env.PROD
-        ? "wss://melotech.anuragparida.com/ws/admin"
-        : "ws://localhost:8000/ws/admin"
-    }`,
+      import.meta.env.VITE_BACKEND_URL?.replace("http", "ws") ||
+      "ws://localhost:8000"
+    }/ws/admin`,
     onMessage: handleMessage,
     onOpen: handleOpen,
     onClose: handleClose,
