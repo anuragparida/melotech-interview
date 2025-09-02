@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+
+// UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+// Icons
 import {
   Edit,
   Save,
@@ -16,10 +21,18 @@ import {
   Headphones,
   Play,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+
+// Hooks and Utils
+import { toast, useToast } from "@/lib/hooks/useToast";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useLogout } from "@/lib/hooks/useLogout";
 import { getUser, updateUser } from "@/lib/supabaseutils/api";
 
 export default function Artist() {
+  const { isAdmin, loading, isAuthenticated, redirectBasedOnAuth } = useAuth();
+  const { logout } = useLogout();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [artistData, setArtistData] = useState({
     name: "",
@@ -31,18 +44,59 @@ export default function Artist() {
     biography: "",
   });
 
+  // Authentication check and redirects
+  useEffect(() => {
+    if (!loading) {
+      if (!isAuthenticated) {
+        navigate("/");
+      } else if (isAdmin) {
+        navigate("/admin");
+      }
+    }
+  }, [loading, isAuthenticated, isAdmin, navigate]);
+
+  // Fetch user data
+  useEffect(() => {
+    if (isAuthenticated && !isAdmin) {
+      getUser()
+        .then((data) => {
+          // Fetched artist data successfully
+          setArtistData(data);
+        })
+        .catch((error) => {
+          // Error fetching user data
+          toast({
+            title: "Error Loading Profile",
+            description:
+              "Failed to load your profile data. Please refresh the page.",
+            variant: "destructive",
+          });
+        });
+    }
+  }, [isAuthenticated, isAdmin, toast]);
+
   const handleInputChange = (field: string, value: string) => {
     setArtistData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     setIsEditing(false);
-    console.log("Saving artist data:", artistData);
+    // Saving artist data
     try {
       const updated = await updateUser(artistData);
       setArtistData(updated);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been saved successfully.",
+      });
     } catch (err) {
-      console.error(err.message);
+      // Error saving profile
+      toast({
+        title: "Save Failed",
+        description:
+          err.message || "Failed to save your profile. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -50,14 +104,22 @@ export default function Artist() {
     setIsEditing(false);
   };
 
-  useEffect(() => {
-    getUser()
-      .then((data) => {
-        console.log("Fetched artist data:", data);
-        setArtistData(data);
-      })
-      .catch(console.error);
-  }, []);
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated or if admin (redirects will handle this)
+  if (!isAuthenticated || isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -90,6 +152,14 @@ export default function Artist() {
                   Create Submission
                 </Button>
               </Link>
+              <Button
+                onClick={logout}
+                variant="outline"
+                className="flex items-center gap-2 bg-slate-800/30 backdrop-blur-sm border-slate-700/50 hover:bg-slate-700/50 text-slate-200 hover:text-white transition-all duration-300"
+              >
+                <X className="h-4 w-4" />
+                Logout
+              </Button>
             </div>
           </div>
 

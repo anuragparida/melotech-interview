@@ -1,42 +1,32 @@
 import type React from "react";
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
 
-// UI Components
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-// Icons
 import { Upload, ArrowLeft, Music } from "lucide-react";
-
-// Hooks and Utils
-import { useToast } from "@/lib/hooks/useToast";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { Link } from "react-router-dom";
 import { createSubmission } from "@/lib/supabaseutils/api";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { toast, useToast } from "@/lib/hooks/useToast";
 
 export default function CreateSubmission() {
-  const { isAdmin, loading, isAuthenticated } = useAuth();
+  const { isAdmin, loading, isAuthenticated, redirectBasedOnAuth } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState("");
   const [formData, setFormData] = useState({
-    title: "",
-    genre: "",
-    bpm: 0,
-    key: "",
-    description: "",
+    title: (Math.random() + 1).toString(36).substring(7),
+    genre: (Math.random() + 1).toString(36).substring(7),
+    bpm: 321,
+    key: "F#",
+    description: (Math.random() + 1).toString(36).substring(7),
   });
 
   const [files, setFiles] = useState(["", "", "", ""]);
@@ -70,13 +60,10 @@ export default function CreateSubmission() {
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleFileChange = (
-    index: number,
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileChange = (index, event) => {
     const newFiles = [...files];
     const file = event.target.files[0];
     if (file) {
@@ -87,6 +74,45 @@ export default function CreateSubmission() {
     setFiles(newFiles.filter(Boolean)); // remove undefined/null
   };
 
+  const simulateUpload = () => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const totalFiles = Object.values(files).filter(Boolean).length;
+    const baseTimePerFile = 30; // seconds
+    const totalEstimatedTime = totalFiles * baseTimePerFile;
+
+    let currentProgress = 0;
+    const interval = setInterval(() => {
+      currentProgress += Math.random() * 15;
+      if (currentProgress >= 100) {
+        currentProgress = 100;
+        setEstimatedTime("Upload complete!");
+        clearInterval(interval);
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadProgress(0);
+          setEstimatedTime("");
+          // Reset form
+          setFormData({
+            title: "",
+            genre: "",
+            bpm: "",
+            key: "",
+            description: "",
+          });
+          setFiles({ mp3: null, wav: null, flac: null, m4a: null });
+        }, 2000);
+      } else {
+        const remainingTime = Math.ceil(
+          (totalEstimatedTime * (100 - currentProgress)) / 100
+        );
+        setEstimatedTime(`Estimated time remaining: ${remainingTime}s`);
+      }
+      setUploadProgress(currentProgress);
+    }, 500);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
@@ -94,11 +120,11 @@ export default function CreateSubmission() {
 
     try {
       const submission = await createSubmission(formData, files);
-      // Submission created successfully
+      console.log("Submission created:", submission);
 
       // Simulate upload progress
       const progressInterval = setInterval(() => {
-        setUploadProgress((prev: number) => {
+        setUploadProgress((prev) => {
           if (prev >= 100) {
             clearInterval(progressInterval);
             setIsUploading(false);
@@ -120,8 +146,8 @@ export default function CreateSubmission() {
           return prev + 10;
         });
       }, 200);
-    } catch (err: any) {
-      // Error submitting
+    } catch (err) {
+      console.error("Error submitting:", err);
       setIsUploading(false);
       toast({
         title: "Submission Failed",
@@ -173,7 +199,7 @@ export default function CreateSubmission() {
                     <Input
                       id="title"
                       value={formData.title}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      onChange={(e) =>
                         handleInputChange("title", e.target.value)
                       }
                       className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500/50 focus:ring-purple-500/20"
@@ -185,60 +211,16 @@ export default function CreateSubmission() {
                     <Label htmlFor="genre" className="text-slate-300">
                       Genre
                     </Label>
-                    <Select
+                    <Input
+                      id="genre"
                       value={formData.genre}
-                      onValueChange={(value: string) =>
-                        handleInputChange("genre", value)
+                      onChange={(e) =>
+                        handleInputChange("genre", e.target.value)
                       }
-                    >
-                      <SelectTrigger className="w-full bg-slate-800/50 border-slate-700 text-white focus:border-purple-500/50 focus:ring-purple-500/20">
-                        <SelectValue placeholder="Select a genre" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        <SelectItem
-                          value="Electronic"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Electronic
-                        </SelectItem>
-                        <SelectItem
-                          value="Rap"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Rap
-                        </SelectItem>
-                        <SelectItem
-                          value="Pop"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Pop
-                        </SelectItem>
-                        <SelectItem
-                          value="House"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          House
-                        </SelectItem>
-                        <SelectItem
-                          value="Reggae"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Reggae
-                        </SelectItem>
-                        <SelectItem
-                          value="Jazz"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Jazz
-                        </SelectItem>
-                        <SelectItem
-                          value="Blues"
-                          className="text-white hover:bg-slate-700"
-                        >
-                          Blues
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500/50 focus:ring-purple-500/20"
+                      placeholder="e.g., Electronic, Hip-Hop, Rock"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bpm" className="text-slate-300">
@@ -248,9 +230,7 @@ export default function CreateSubmission() {
                       id="bpm"
                       type="number"
                       value={formData.bpm}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        handleInputChange("bpm", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("bpm", e.target.value)}
                       className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500/50 focus:ring-purple-500/20"
                       placeholder="120"
                       required
@@ -263,9 +243,7 @@ export default function CreateSubmission() {
                     <Input
                       id="key"
                       value={formData.key}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        handleInputChange("key", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("key", e.target.value)}
                       className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500/50 focus:ring-purple-500/20"
                       placeholder="e.g., C Major, A Minor"
                       required
@@ -279,7 +257,7 @@ export default function CreateSubmission() {
                   <Textarea
                     id="description"
                     value={formData.description}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    onChange={(e) =>
                       handleInputChange("description", e.target.value)
                     }
                     className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-purple-500/50 focus:ring-purple-500/20 min-h-[100px]"
@@ -310,9 +288,7 @@ export default function CreateSubmission() {
                           <input
                             type="file"
                             accept={`.${format}`}
-                            onChange={(
-                              e: React.ChangeEvent<HTMLInputElement>
-                            ) => handleFileChange(index, e)}
+                            onChange={(e) => handleFileChange(index, e)}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                           />
                           <div className="flex items-center gap-3 p-4 bg-slate-800/30 border-2 border-dashed border-slate-700 rounded-lg hover:border-purple-500/50 transition-colors">
@@ -370,7 +346,7 @@ export default function CreateSubmission() {
                     <span className="text-slate-400">
                       {Math.round(uploadProgress)}% complete
                     </span>
-                    <span className="text-purple-400">Uploading...</span>
+                    <span className="text-purple-400">{estimatedTime}</span>
                   </div>
                 </div>
               </div>

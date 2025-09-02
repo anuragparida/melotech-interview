@@ -1,27 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-
-// UI Components
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-// Icons
 import { Play, Pause, ArrowLeft, Music, Star } from "lucide-react";
-
-// Audio Visualization - Conditional import to avoid React 19 compatibility issues
-let AudioVisualizer: any = null;
-try {
-  const audioVisualizeModule = require("react-audio-visualize");
-  AudioVisualizer = audioVisualizeModule.AudioVisualizer;
-} catch (error) {
-  // Audio visualizer not available, using fallback
-}
-
-// Hooks and Utils
-import { useToast } from "@/lib/hooks/useToast";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { Link } from "react-router-dom";
 import { getSubmissions, getUser } from "@/lib/supabaseutils/api";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { toast, useToast } from "@/lib/hooks/useToast";
 
 interface Submission {
   id: string;
@@ -32,14 +18,13 @@ interface Submission {
   description: string;
   rating: number;
   feedback: string;
-  status: "pending" | "in-review" | "approved" | "rejected";
+  status: "pending" | "accepted" | "rejected";
   created_at: string;
   files: string[];
-  duration?: string;
 }
 
 export default function ViewSubmissionsPage() {
-  const { isAdmin, loading, isAuthenticated } = useAuth();
+  const { isAdmin, loading, isAuthenticated, redirectBasedOnAuth } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -76,7 +61,7 @@ export default function ViewSubmissionsPage() {
           setUserData(data);
         })
         .catch((error) => {
-          // Error fetching user data
+          console.error("Error fetching user data:", error);
           toast({
             title: "Error Loading Profile",
             description: "Failed to load your profile data.",
@@ -91,7 +76,7 @@ export default function ViewSubmissionsPage() {
     if (playingId && metaLoaded && !isPlaying && audioRef.current?.paused) {
       const audio = audioRef.current;
       if (audio) {
-        audio.play().catch(() => {});
+        audio.play().catch(console.error);
       }
     }
   }, [playingId, metaLoaded]);
@@ -164,10 +149,9 @@ export default function ViewSubmissionsPage() {
   const fetchSubmissions = async () => {
     try {
       const data = await getSubmissions();
-      // Fetched submissions successfully
       setSubmissions(data);
-    } catch (err: any) {
-      // Error fetching submissions
+    } catch (err) {
+      console.error("Error fetching submissions:", err.message);
       toast({
         title: "Error Loading Submissions",
         description:
@@ -181,8 +165,6 @@ export default function ViewSubmissionsPage() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Attempting to play audio file
-
     if (playingId === file) {
       // Same file - toggle play/pause
       if (isPlaying) {
@@ -190,7 +172,7 @@ export default function ViewSubmissionsPage() {
         // Don't set isPlaying here - let the onPause event handle it
       } else {
         if (metaLoaded) {
-          audio.play().catch(() => {});
+          audio.play().catch(console.error);
           // Don't set isPlaying here - let the onPlay event handle it
         }
       }
@@ -239,8 +221,7 @@ export default function ViewSubmissionsPage() {
   };
 
   // Handle audio error
-  const handleAudioError = (e: any) => {
-    // Audio error occurred
+  const handleAudioError = () => {
     setIsPlaying(false);
     toast({
       title: "Audio Error",
@@ -251,13 +232,10 @@ export default function ViewSubmissionsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "approved":
+      case "accepted":
         return "bg-green-500/20 text-green-400 border-green-500/30";
       case "rejected":
         return "bg-red-500/20 text-red-400 border-red-500/30";
-      case "in-review":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "pending":
       default:
         return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
     }
@@ -323,7 +301,7 @@ export default function ViewSubmissionsPage() {
             </div>
 
             <div className="grid gap-6">
-              {submissions.map((submission: Submission) => (
+              {submissions.map((submission) => (
                 <Card
                   key={submission.id}
                   className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50 shadow-xl"
@@ -354,42 +332,23 @@ export default function ViewSubmissionsPage() {
                           </div>
                         </div>
 
-                        {/* Audio Visualizer */}
+                        {/* Dummy Waveform */}
                         <div className="bg-slate-700/30 rounded-lg p-4">
-                          <div className="h-16 w-full">
-                            {AudioVisualizer ? (
-                              <AudioVisualizer
-                                audioRef={audioRef}
-                                barWidth={2}
-                                gap={1}
-                                barColor={
-                                  playingId === submission.files[0] && isPlaying
-                                    ? "#60a5fa"
-                                    : "#64748b"
-                                }
-                                barPlayedColor="#60a5fa"
-                                className="w-full h-full"
+                          <div className="flex items-end gap-1 h-16">
+                            {Array.from({ length: 50 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`flex-1 rounded-sm transition-all duration-200 ${
+                                  playingId === submission.id &&
+                                  i < (progress || 0) / 2
+                                    ? "bg-blue-400"
+                                    : "bg-slate-600"
+                                }`}
+                                style={{
+                                  height: `${Math.random() * 60 + 10}%`,
+                                }}
                               />
-                            ) : (
-                              // Fallback to simple waveform bars
-                              <div className="flex items-end gap-1 h-16">
-                                {Array.from({ length: 50 }).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className={`flex-1 rounded-sm transition-all duration-200 ${
-                                      playingId === submission.files[0] &&
-                                      isPlaying &&
-                                      i < (progress || 0) / 2
-                                        ? "bg-blue-400"
-                                        : "bg-slate-600"
-                                    }`}
-                                    style={{
-                                      height: `${Math.random() * 60 + 10}%`,
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                            ))}
                           </div>
 
                           {/* Progress Bar */}
@@ -451,14 +410,12 @@ export default function ViewSubmissionsPage() {
                         </div>
                       </div>
 
-                      {/* Rating, Status & Feedback */}
+                      {/* Rating & Status */}
                       <div className="lg:col-span-3 space-y-4">
                         <div className="flex items-center justify-between">
                           <Badge className={getStatusColor(submission.status)}>
-                            {submission.status === "in-review"
-                              ? "In Review"
-                              : submission.status.charAt(0).toUpperCase() +
-                                submission.status.slice(1)}
+                            {submission.status.charAt(0).toUpperCase() +
+                              submission.status.slice(1)}
                           </Badge>
                         </div>
 
@@ -489,21 +446,16 @@ export default function ViewSubmissionsPage() {
                           </div>
                         </div>
 
-                        {/* Feedback Section */}
-                        <div className="space-y-2">
-                          <p className="text-slate-400 text-sm">Feedback</p>
-                          <div className="bg-slate-700/30 rounded-lg p-3 min-h-[80px]">
-                            {submission.feedback ? (
+                        {submission.feedback && (
+                          <div className="space-y-2">
+                            <p className="text-slate-400 text-sm">Feedback</p>
+                            <div className="bg-slate-700/30 rounded-lg p-3">
                               <p className="text-slate-200 text-sm leading-relaxed">
                                 {submission.feedback}
                               </p>
-                            ) : (
-                              <p className="text-slate-500 text-sm italic">
-                                No feedback provided yet
-                              </p>
-                            )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

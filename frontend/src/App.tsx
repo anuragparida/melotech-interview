@@ -1,18 +1,40 @@
 import type React from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { useState } from "react";
+// UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+// Icons
 import { Music, LogIn } from "lucide-react";
+
+// Hooks and Utils
+import { toast, useToast } from "@/lib/hooks/useToast";
+import { useAuth } from "./lib/hooks/useAuth";
 import supabase from "./lib/supabase";
 
 export default function App() {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
   });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      if (isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/artist");
+      }
+    }
+  }, [loading, isAuthenticated, isAdmin, navigate]);
 
   const handleInputChange = (field: string, value: string) => {
     setLoginData((prev) => ({ ...prev, [field]: value }));
@@ -21,35 +43,51 @@ export default function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Login attempt:", loginData);
-    // Handle login logic here
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginData.email,
-      password: loginData.password,
-    });
-    if (error) console.error("Login error:", error.message);
-    else {
-      console.log("Logged in:", data);
-      const { user } = data;
-      if (user) {
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("admin")
-          .eq("authid", user.id)
-          .single();
 
-        if (userError) {
-          console.error("User query error:", userError.message);
-        } else if (userData?.admin) {
-          console.log("User is admin");
-          // You can handle admin logic here
-          window.location.href = "/admin";
-        } else {
-          console.log("User is not admin");
-          window.location.href = "/artist";
-        }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
+      });
+
+      if (error) {
+        console.error("Login error:", error.message);
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid email or password",
+          variant: "destructive",
+        });
+        return;
       }
+
+      console.log("Logged in:", data);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      // The useAuth hook will automatically handle the redirect
+      // based on the user's admin status
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
   };
+
+  // Show loading state if checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-8">
