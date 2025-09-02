@@ -12,8 +12,17 @@ RUN pnpm install
 # Copy source code
 COPY frontend/ .
 
-# Build the application (skip type checking for now)
-# Environment variables will be injected at build time by Coolify
+# Build the application with environment variables
+# These will be passed from Coolify during build
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
+# Debug: Print environment variables (remove this after testing)
+RUN echo "VITE_SUPABASE_URL: $VITE_SUPABASE_URL"
+RUN echo "VITE_SUPABASE_ANON_KEY: $VITE_SUPABASE_ANON_KEY"
+
 RUN pnpm build --mode production
 
 # Production stage
