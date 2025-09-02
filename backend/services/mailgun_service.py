@@ -55,13 +55,13 @@ class MailgunService:
         """Get email template based on status"""
         
         templates = {
-            "accepted": {
-                "subject": "🎉 Your Submission Has Been Accepted!",
+            "approved": {
+                "subject": "🎉 Your Submission Has Been Approved!",
                 "html": f"""
                 <html>
                 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #10b981;">Great News!</h2>
-                    <p>Your submission "<strong>{submission_title}</strong>" has been <strong>accepted</strong>!</p>
+                    <p>Your submission "<strong>{submission_title}</strong>" has been <strong>approved</strong>!</p>
                     <p>Congratulations! We're excited to work with you on this project.</p>
                     {f'<p><strong>Feedback:</strong> {feedback}</p>' if feedback else ''}
                     <p>Thank you for your submission and we look forward to hearing more from you!</p>
@@ -70,7 +70,23 @@ class MailgunService:
                 </body>
                 </html>
                 """,
-                "text": f"Great News! Your submission '{submission_title}' has been accepted! Congratulations! We're excited to work with you on this project. {f'Feedback: {feedback}' if feedback else ''} Thank you for your submission and we look forward to hearing more from you! Best regards, The MeloTech Team"
+                "text": f"Great News! Your submission '{submission_title}' has been approved! Congratulations! We're excited to work with you on this project. {f'Feedback: {feedback}' if feedback else ''} Thank you for your submission and we look forward to hearing more from you! Best regards, The MeloTech Team"
+            },
+            "in-review": {
+                "subject": "Your Submission is Now In Review",
+                "html": f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #3b82f6;">Submission In Review</h2>
+                    <p>Your submission "<strong>{submission_title}</strong>" is now being reviewed by our team.</p>
+                    <p>This is an exciting step! Our team will carefully evaluate your submission and provide detailed feedback.</p>
+                    <p>We'll notify you as soon as the review is complete.</p>
+                    <hr style="margin: 20px 0;">
+                    <p style="color: #6b7280; font-size: 14px;">Best regards,<br>The MeloTech Team</p>
+                </body>
+                </html>
+                """,
+                "text": f"Your submission '{submission_title}' is now being reviewed by our team. This is an exciting step! Our team will carefully evaluate your submission and provide detailed feedback. We'll notify you as soon as the review is complete. Best regards, The MeloTech Team"
             },
             "rejected": {
                 "subject": "Update on Your Submission",

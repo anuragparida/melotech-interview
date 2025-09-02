@@ -76,3 +76,37 @@ class SupabaseService:
         except Exception as e:
             print(f"Error updating submission: {str(e)}")
             return False
+    
+    def update_submission(self, submission_id: str, update_data: dict) -> Optional[dict]:
+        """Update submission with any fields"""
+        try:
+            response = self.client.table("submissions").update(update_data).eq("id", submission_id).execute()
+            
+            if response.data and len(response.data) > 0:
+                print(f"Successfully updated submission {submission_id}")
+                return response.data[0]
+            else:
+                print(f"Failed to update submission {submission_id}")
+                return None
+                
+        except Exception as e:
+            print(f"Error updating submission: {str(e)}")
+            return None
+    
+    def get_user_email_by_userid(self, userid: str) -> Optional[str]:
+        """Get user email from users table using userid"""
+        try:
+            # First get the authid from users table
+            user_response = self.client.table("users").select("authid").eq("id", userid).execute()
+            
+            if user_response.data and len(user_response.data) > 0:
+                authid = user_response.data[0]["authid"]
+                # Then get email from auth.users
+                return self.get_user_email_by_authid(authid)
+            else:
+                print(f"No user found with userid: {userid}")
+                return None
+                
+        except Exception as e:
+            print(f"Error fetching user email by userid: {str(e)}")
+            return None

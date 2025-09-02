@@ -97,6 +97,97 @@ async def websocket_artist_endpoint(websocket: WebSocket, user_id: str):
         websocket_manager.disconnect(websocket)
 
 
+@router.put("/submissions/{submission_id}")
+async def update_submission(
+    submission_id: str,
+    status: Optional[str] = None,
+    rating: Optional[int] = None,
+    feedback: Optional[str] = None
+):
+    """Update submission status, rating, and feedback via REST API"""
+    
+    try:
+        # Validate status if provided
+        if status and status not in ["pending", "in-review", "approved", "rejected"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid status. Must be one of: pending, in-review, approved, rejected"
+            )
+        
+        # Validate rating if provided
+        if rating is not None and (rating < 1 or rating > 10):
+            raise HTTPException(
+                status_code=400,
+                detail="Rating must be between 1 and 10"
+            )
+        
+        # Update submission in Supabase
+        update_data = {}
+        if status is not None:
+            update_data["status"] = status
+        if rating is not None:
+            update_data["rating"] = rating
+        if feedback is not None:
+            update_data["feedback"] = feedback
+        
+        # Add timestamp
+        update_data["updated_at"] = "now()"
+        
+        # Update in Supabase
+        result = webhook_handler.supabase_service.update_submission(submission_id, update_data)
+        
+        if result:
+            # Get the updated submission to send email notification
+            submission = webhook_handler.supabase_service.get_submission_by_id(submission_id)
+            
+            if submission and status in ["pending", "in-review", "approved", "rejected"]:
+                # Send email notification
+                user_email = webhook_handler.supabase_service.get_user_email_by_userid(submission.get("userid"))
+                
+                if user_email:
+                    email_sent = webhook_handler.mailgun_service.send_status_update_email(
+                        user_email=user_email,
+                        submission_title=submission.get("title", "Your Submission"),
+                        status=status,
+                        feedback=feedback or ""
+                    )
+                    
+                    return {
+                        "message": "Submission updated successfully",
+                        "submission_id": submission_id,
+                        "updated_fields": list(update_data.keys()),
+                        "email_sent": email_sent,
+                        "data": result
+                    }
+            
+            return {
+                "message": "Submission updated successfully",
+                "submission_id": submission_id,
+                "updated_fields": list(update_data.keys()),
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Submission not found")
+            
+    except Exception as e:
+        print(f"Error updating submission: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/submissions/{submission_id}")
+async def get_submission(submission_id: str):
+    """Get submission by ID"""
+    try:
+        submission = webhook_handler.supabase_service.get_submission_by_id(submission_id)
+        if submission:
+            return {"submission": submission}
+        else:
+            raise HTTPException(status_code=404, detail="Submission not found")
+    except Exception as e:
+        print(f"Error getting submission: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.get("/health")
 def health_check():
     """Health check endpoint"""
@@ -104,7 +195,7 @@ def health_check():
         "status": "healthy",
         "service": config.APP_NAME,
         "version": config.APP_VERSION,
-        "features": ["mailgun", "supabase_webhooks", "websockets"],
+        "features": ["mailgun", "supabase_webhooks", "websockets", "rest_api"],
         "active_connections": websocket_manager.get_connection_count(),
         "active_rooms": websocket_manager.get_rooms()
     }

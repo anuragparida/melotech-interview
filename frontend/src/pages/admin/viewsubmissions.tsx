@@ -46,7 +46,8 @@ try {
 import { useToast } from "@/lib/hooks/useToast";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useLogout } from "@/lib/hooks/useLogout";
-import { getSubmissions, updateSubmissionAdmin } from "@/lib/supabaseutils/api";
+import { getSubmissions } from "@/lib/supabaseutils/api";
+import { updateSubmissionComplete } from "@/lib/api/submissions";
 import { useAdminWebSocket } from "@/lib/hooks/useAdminWebSocket";
 
 interface Submission {
@@ -429,21 +430,27 @@ export default function AdminPage() {
     }
 
     try {
-      const updates = {
-        rating: submission.rating,
-        status: submission.status,
-        feedback: submission.feedback,
-      };
+      // Update submission using REST API
+      const response = await updateSubmissionComplete(
+        id,
+        submission.status,
+        submission.rating || 0,
+        submission.feedback || ""
+      );
 
-      // Updating submission
-      await updateSubmissionAdmin(id, updates);
       setEditingId(null);
+
+      // Show success message with email status
+      const emailStatus = response.email_sent
+        ? "Email notification sent."
+        : "Email notification failed.";
       toast({
         title: "Success",
-        description: "Submission updated successfully",
+        description: `Submission updated successfully. ${emailStatus}`,
       });
     } catch (error) {
       // Error updating submission
+      console.error("Error updating submission:", error);
       toast({
         title: "Error",
         description: "Failed to update submission",
