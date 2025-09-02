@@ -22,7 +22,7 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=frontend-build /app/frontend/dist /usr/share/nginx/html
 
-# Create nginx config with environment variable injection
+# Create simple nginx config
 RUN echo 'server {\
     listen 80;\
     server_name localhost;\
@@ -31,19 +31,7 @@ RUN echo 'server {\
     location / {\
         try_files $uri $uri/ /index.html;\
     }\
-    location /env.js {\
-        add_header Content-Type application/javascript;\
-        return 200 "window.__SUPABASE_URL__ = \"$VITE_SUPABASE_URL\"; window.__SUPABASE_ANON_KEY__ = \"$VITE_SUPABASE_ANON_KEY\";";\
-    }\
 }' > /etc/nginx/conf.d/default.conf
 
-# Create startup script to inject env vars
-RUN echo '#!/bin/sh\n\
-# Create env.js file with environment variables\n\
-echo "window.__SUPABASE_URL__ = \"$VITE_SUPABASE_URL\"; window.__SUPABASE_ANON_KEY__ = \"$VITE_SUPABASE_ANON_KEY\";" > /usr/share/nginx/html/env.js\n\
-# Start nginx\n\
-nginx -g "daemon off;"\n\
-' > /start.sh && chmod +x /start.sh
-
 EXPOSE 80
-CMD ["/start.sh"]
+CMD ["nginx", "-g", "daemon off;"]
